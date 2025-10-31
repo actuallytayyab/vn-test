@@ -94,6 +94,23 @@ jobs:
         run: |
           flutter pub get
 
+      # Temporarily disable Jetifier and skip lint tasks to avoid Java 24 bytecode issues
+      # Jetifier cannot process JARs compiled with Java 24 (class file major version 68)
+      - name: Configure admin app Gradle properties
+        run: |
+          if [ -f admin/android/gradle.properties ]; then
+            # Backup original file
+            cp admin/android/gradle.properties admin/android/gradle.properties.bak
+            # Disable Jetifier to avoid Java 24 bytecode transformation issues
+            sed -i 's/android.enableJetifier=true/android.enableJetifier=false/' admin/android/gradle.properties
+            # Add property to skip lint model generation (not needed for APK)
+            if ! grep -q "android.lint.checkReleaseBuilds=false" admin/android/gradle.properties; then
+              echo "android.lint.checkReleaseBuilds=false" >> admin/android/gradle.properties
+            fi
+            echo "Gradle properties configured for admin app:"
+            cat admin/android/gradle.properties
+          fi
+
       # Stop all Gradle daemons and clear cache before build
       - name: Reset Gradle environment before build
         run: |
@@ -133,8 +150,17 @@ jobs:
           # Verify Gradle will use the correct Java
           cd android && ./gradlew --version || true
           cd ..
-          # Build with explicit Java 17
-          flutter build apk --release --no-tree-shake-icons
+          # Build APK - Jetifier disabled via gradle.properties
+          # If build fails, try skipping lint tasks directly
+          flutter build apk --release --no-tree-shake-icons || \
+          (echo "Flutter build failed, trying with lint tasks excluded..." && \
+           cd android && \
+           ./gradlew assembleRelease \
+             -x generateReleaseLintModel \
+             -x lintVitalRelease \
+             -x lint \
+             -Pandroid.lint.checkReleaseBuilds=false && \
+           cd ..)
 
       # Build unsigned release APK for doctor app
       - name: Build doctor release APK
