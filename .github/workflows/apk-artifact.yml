@@ -86,27 +86,53 @@ jobs:
         run: |
           flutter pub get
 
+      # Stop any running Gradle daemons and clear problematic cache
+      - name: Reset Gradle environment
+        run: |
+          echo "Current Java version:"
+          java -version
+          echo "JAVA_HOME: $JAVA_HOME"
+          echo "PATH: $PATH"
+          # Stop all Gradle daemons to ensure fresh start with Java 17
+          cd admin/android && ./gradlew --stop 2>/dev/null || true
+          cd ../../doctor/android && ./gradlew --stop 2>/dev/null || true
+          cd ../../patient/android && ./gradlew --stop 2>/dev/null || true
+          cd ../..
+          # Clear the problematic byte-buddy cache that was created with Java 24
+          rm -rf ~/.gradle/caches/modules-2/files-2.1/net.bytebuddy/
+          # Also clear processed artifacts that might have Java 24 bytecode
+          rm -rf ~/.gradle/caches/transforms-*
+          
       # Build unsigned release APK for admin app
       - name: Build admin release APK
         working-directory: ./admin
-        env:
-          JAVA_HOME: ${{ env.JAVA_HOME_17 }}
         run: |
-          # Ensure Gradle uses the correct Java version
-          export JAVA_HOME=${{ env.JAVA_HOME_17 }}
-          flutter build apk --release
+          # Verify Java version before build
+          echo "=== Java Environment ==="
+          java -version
+          echo "JAVA_HOME: $JAVA_HOME"
+          which java
+          echo "========================"
+          # Set JAVA_HOME explicitly to ensure Gradle uses Java 17
+          export JAVA_HOME="$JAVA_HOME"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          # Verify Gradle will use the correct Java
+          cd android && ./gradlew --version || true
+          cd ..
+          # Build with explicit Java 17
+          flutter build apk --release --no-tree-shake-icons
 
       # Build unsigned release APK for doctor app
       - name: Build doctor release APK
         working-directory: ./doctor
         run: |
-          flutter build apk --release
+          flutter build apk --release --no-tree-shake-icons
 
       # Build unsigned release APK for patient app
       - name: Build patient release APK
         working-directory: ./patient
         run: |
-          flutter build apk --release
+          flutter build apk --release --no-tree-shake-icons
 
       # Package all APKs into build_outputs folder
       - name: Package APK artifacts
