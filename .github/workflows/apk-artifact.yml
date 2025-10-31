@@ -23,6 +23,14 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      # Clear Gradle cache immediately after Java setup to remove any Java 24 artifacts
+      - name: Clear Gradle cache (pre-Flutter)
+        run: |
+          echo "Clearing Gradle cache to remove Java 24 artifacts..."
+          rm -rf ~/.gradle/caches/
+          rm -rf ~/.gradle/daemon/
+          echo "Gradle cache cleared"
+
       # Setup Flutter 3.35.7 (stable) for all apps
       - name: Setup Flutter (3.35.7)
         uses: subosito/flutter-action@v2
@@ -86,22 +94,28 @@ jobs:
         run: |
           flutter pub get
 
-      # Stop any running Gradle daemons and clear problematic cache
-      - name: Reset Gradle environment
+      # Stop all Gradle daemons and clear cache before build
+      - name: Reset Gradle environment before build
         run: |
-          echo "Current Java version:"
-          java -version
-          echo "JAVA_HOME: $JAVA_HOME"
-          echo "PATH: $PATH"
-          # Stop all Gradle daemons to ensure fresh start with Java 17
-          cd admin/android && ./gradlew --stop 2>/dev/null || true
-          cd ../../doctor/android && ./gradlew --stop 2>/dev/null || true
-          cd ../../patient/android && ./gradlew --stop 2>/dev/null || true
-          cd ../..
-          # Clear the problematic byte-buddy cache that was created with Java 24
-          rm -rf ~/.gradle/caches/modules-2/files-2.1/net.bytebuddy/
-          # Also clear processed artifacts that might have Java 24 bytecode
-          rm -rf ~/.gradle/caches/transforms-*
+          echo "Stopping all Gradle daemons..."
+          # Stop daemons if gradlew exists
+          if [ -f admin/android/gradlew ]; then
+            cd admin/android && ./gradlew --stop 2>/dev/null || true
+            cd ../..
+          fi
+          if [ -f doctor/android/gradlew ]; then
+            cd doctor/android && ./gradlew --stop 2>/dev/null || true
+            cd ../..
+          fi
+          if [ -f patient/android/gradlew ]; then
+            cd patient/android && ./gradlew --stop 2>/dev/null || true
+            cd ../..
+          fi
+          # Clear entire Gradle cache again to ensure clean state
+          echo "Clearing Gradle cache..."
+          rm -rf ~/.gradle/caches/
+          rm -rf ~/.gradle/daemon/
+          echo "Gradle environment reset complete"
           
       # Build unsigned release APK for admin app
       - name: Build admin release APK
