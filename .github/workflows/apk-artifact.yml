@@ -15,6 +15,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Setup Java 17 (LTS) - required for Jetifier compatibility
+      # Ubuntu runners come with Java 24 by default, which Jetifier doesn't support
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       # Setup Flutter 3.35.7 (stable) for all apps
       - name: Setup Flutter (3.35.7)
         uses: subosito/flutter-action@v2
@@ -23,9 +31,12 @@ jobs:
           channel: 'stable'
           cache: true
 
-      # Verify Flutter installation and display version info
-      - name: Verify Flutter installation
+      # Verify Java and Flutter installation
+      - name: Verify Java and Flutter installation
         run: |
+          java -version
+          echo "JAVA_HOME: $JAVA_HOME"
+          echo "---"
           flutter --version
           flutter doctor -v
 
@@ -78,7 +89,11 @@ jobs:
       # Build unsigned release APK for admin app
       - name: Build admin release APK
         working-directory: ./admin
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME_17 }}
         run: |
+          # Ensure Gradle uses the correct Java version
+          export JAVA_HOME=${{ env.JAVA_HOME_17 }}
           flutter build apk --release
 
       # Build unsigned release APK for doctor app
