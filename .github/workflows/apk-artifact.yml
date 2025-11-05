@@ -56,7 +56,12 @@ jobs:
         working-directory: ./doctor
         run: |
           flutter create --platforms=android .
-      # Ensure compileSdk is 34 for admin/doctor (Groovy) and patient (Kotlin DSL)
+      # Ensure Android platform exists for stock app (idempotent)
+      - name: Ensure Android platform for stock app
+        working-directory: ./stock
+        run: |
+          flutter create --platforms=android .
+      # Ensure compileSdk is 34 for admin/doctor (Groovy) and patient/stock (Kotlin DSL)
       - name: Set compileSdkVersion to 34 for all apps
         run: |
           # admin (Groovy)
@@ -71,6 +76,10 @@ jobs:
           if [ -f patient/android/app/build.gradle.kts ]; then
             sed -i 's/compileSdk *= *[0-9]\+/compileSdk = 34/' patient/android/app/build.gradle.kts || true
           fi
+          # stock (Kotlin DSL)
+          if [ -f stock/android/app/build.gradle.kts ]; then
+            sed -i 's/compileSdk *= *[0-9]\+/compileSdk = 34/' stock/android/app/build.gradle.kts || true
+          fi
       # Install dependencies for admin app
       - name: Install admin app dependencies
         working-directory: ./admin
@@ -84,6 +93,11 @@ jobs:
       # Install dependencies for patient app
       - name: Install patient app dependencies
         working-directory: ./patient
+        run: |
+          flutter pub get
+      # Install dependencies for stock app
+      - name: Install stock app dependencies
+        working-directory: ./stock
         run: |
           flutter pub get
       # Temporarily disable Jetifier and skip lint tasks to avoid Java 24 bytecode issues
@@ -117,6 +131,10 @@ jobs:
           fi
           if [ -f patient/android/gradlew ]; then
             cd patient/android && ./gradlew --stop 2>/dev/null || true
+            cd ../..
+          fi
+          if [ -f stock/android/gradlew ]; then
+            cd stock/android && ./gradlew --stop 2>/dev/null || true
             cd ../..
           fi
           # Clear entire Gradle cache again to ensure clean state
@@ -162,6 +180,11 @@ jobs:
         working-directory: ./patient
         run: |
           flutter build apk --release --no-tree-shake-icons
+      # Build unsigned release APK for stock app
+      - name: Build stock release APK
+        working-directory: ./stock
+        run: |
+          flutter build apk --release --no-tree-shake-icons
       # Package all APKs into build_outputs folder
       - name: Package APK artifacts
         run: |
@@ -169,6 +192,7 @@ jobs:
           cp admin/build/app/outputs/flutter-apk/app-release.apk build_outputs/admin_release.apk
           cp doctor/build/app/outputs/flutter-apk/app-release.apk build_outputs/doctor_release.apk
           cp patient/build/app/outputs/flutter-apk/app-release.apk build_outputs/patient_release.apk
+          cp stock/build/app/outputs/flutter-apk/app-release.apk build_outputs/stock_release.apk
           ls -lh build_outputs/
       # Upload all APKs as a single artifact named release-apks
       - name: Upload release APKs artifact
@@ -176,4 +200,4 @@ jobs:
         with:
           name: release-apks
           path: build_outputs/
-          retention-days: 30
+          retention-days: 7
