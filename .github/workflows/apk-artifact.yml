@@ -189,10 +189,10 @@ jobs:
       - name: Package APK artifacts
         run: |
           mkdir -p build_outputs
-          cp admin/build/app/outputs/flutter-apk/app-release.apk build_outputs/admin_release.apk
-          cp doctor/build/app/outputs/flutter-apk/app-release.apk build_outputs/doctor_release.apk
-          cp patient/build/app/outputs/flutter-apk/app-release.apk build_outputs/patient_release.apk
-          cp stock/build/app/outputs/flutter-apk/app-release.apk build_outputs/stock_release.apk
+          cp admin/build/app/outputs/flutter-apk/app-release.apk build_outputs/Admin.apk
+          cp doctor/build/app/outputs/flutter-apk/app-release.apk build_outputs/Doctor.apk
+          cp patient/build/app/outputs/flutter-apk/app-release.apk build_outputs/Patient.apk
+          cp stock/build/app/outputs/flutter-apk/app-release.apk build_outputs/Stock.apk
           ls -lh build_outputs/
       # Upload all APKs as a single artifact named release-apks
       - name: Upload release APKs artifact
